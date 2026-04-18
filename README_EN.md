@@ -16,17 +16,37 @@ A Go-based WeChat Mini Program `.wxapkg` unpacker with automatic scanning, decry
 
 ---
 
-## Important Disclaimer
+## ⚠️ Legal and Usage Notice
 
-> **This tool is intended only for legally authorized security research, reverse engineering, compatibility verification, learning, and auditing of assets you own or are explicitly authorized to assess.**
->
-> **Do not use this tool for any unauthorized scenario, including but not limited to unpacking third-party Mini Programs without permission, code or asset theft, bulk scraping, privacy extraction, bypassing platform protections, offensive testing, commercial abuse, risk-control evasion, malware delivery, or any activity that violates laws, platform terms, copyright rules, privacy policies, or internal compliance requirements.**
->
-> **Before using this tool, you are responsible for confirming that you have clear and valid authorization for the target Mini Program, account, device, environment, business system, and data involved, and for evaluating any legal, compliance, copyright, privacy, data-leakage, account-ban, service-interruption, or third-party claim risks.**
->
-> **The authors and contributors of this project are not liable for any direct or indirect loss arising from the use, misuse, or abuse of this tool, including but not limited to data leakage, privacy infringement, intellectual property disputes, platform penalties, account suspension, system failures, production incidents, financial loss, administrative penalties, or criminal liability.**
->
-> **If you cannot verify that your use is authorized, stop immediately. Continuing to use this tool means you understand and accept the above risks and responsibilities.**
+**This tool may only be used for security research, reverse engineering, compatibility verification, learning, and technical auditing of self-owned or entrusted assets, and only where such use is lawful, proper, and fully authorized.**
+
+**Before using this tool, every user must independently confirm that they have clear, continuing, and demonstrable legal authorization over the target Mini Program, related accounts, devices, data, network environment, business systems, and any other associated resources. If you cannot confirm the scope or validity of such authorization, you must stop using this tool immediately.**
+
+### Prohibited Uses
+
+**This tool must not be used in any unauthorized scenario or in any way that may violate applicable laws, platform rules, contractual obligations, intellectual property rights, or privacy protections, including but not limited to:**
+
+- **Unpacking, analyzing, extracting, copying, or distributing third-party Mini Program code, assets, or data without permission**
+- **Bypassing platform protections, risk-control mechanisms, access restrictions, or any other technical controls**
+- **Bulk collection, data scraping, privacy extraction, API abuse, or automated offensive testing**
+- **Commercial theft, malicious imitation, malicious distribution, abuse in illicit industries, or any other improper purpose**
+- **Any conduct that may cause harm to others, platform penalties, business interruption, data leakage, or compliance risks**
+
+### Risk Notice
+
+**Use of this tool may involve and result in risks including but not limited to legal liability, administrative penalties, civil damages, criminal exposure, intellectual property disputes, privacy infringement claims, account suspension, service interruption, data leakage, production incidents, and third-party claims.**
+
+**Users are solely responsible for evaluating and bearing all risks and consequences arising from their use, misuse, or abuse of this tool.**
+
+### Limitation of Liability
+
+**To the maximum extent permitted by applicable law, this project and its authors, contributors, and maintainers shall not be liable for any direct, indirect, incidental, special, punitive, or consequential loss arising from the use, inability to use, misuse, or abuse of this tool, including but not limited to data loss, information leakage, privacy infringement, intellectual property disputes, platform penalties, account suspension, system failures, business loss, financial loss, administrative liability, or criminal liability.**
+
+**This tool is provided on an “as is” basis, without any express or implied warranty, including but not limited to warranties of merchantability, fitness for a particular purpose, stability, accuracy, completeness, continued availability, or legal suitability.**
+
+### Use Constitutes Acceptance
+
+**By continuing to download, install, run, distribute, or use this tool, you acknowledge that you have read, understood, and agreed to this notice in full, and that you will use this tool only within a lawfully authorized scope.**
 
 ---
 
