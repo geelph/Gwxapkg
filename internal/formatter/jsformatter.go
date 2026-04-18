@@ -3,6 +3,7 @@ package formatter
 import (
 	"bytes"
 
+	. "github.com/25smoking/Gwxapkg/internal/config"
 	"github.com/ditashi/jsbeautifier-go/jsbeautifier"
 )
 
@@ -18,16 +19,39 @@ func NewJSFormatter() *JSFormatter {
 // input: 原始的 JavaScript 代码字节切片
 // 返回值: 格式化后的 JavaScript 代码字节切片和错误信息（如果有）
 func (f *JSFormatter) Format(input []byte) ([]byte, error) {
-	// 将输入数据转换为字符串，并去除前后空白
-	code := string(bytes.TrimSpace(input))
+	formatted, _, err := f.FormatFile(input, "")
+	return formatted, err
+}
 
-	// 使用 jsbeautifier 库格式化 JavaScript 代码
-	beautifiedCode, err := jsbeautifier.Beautify(&code, jsbeautifier.DefaultOptions())
+// FormatFile 按文件路径格式化并返回反混淆元数据
+func (f *JSFormatter) FormatFile(input []byte, filePath string) ([]byte, *DeobfuscationResult, error) {
+	result, err := AnalyzeJavaScript(input, filePath)
 	if err != nil {
-		return input, err
+		return input, result, err
 	}
 
-	return []byte(beautifiedCode), nil
+	output := bytes.TrimSpace(result.Content)
+	configManager := NewSharedConfigManager()
+	pretty := true
+	if value, ok := configManager.Get("pretty"); ok {
+		if enabled, ok := value.(bool); ok {
+			pretty = enabled
+		}
+	}
+
+	if pretty {
+		code := string(output)
+		beautifiedCode, beautifyErr := jsbeautifier.Beautify(&code, jsbeautifier.DefaultOptions())
+		if beautifyErr == nil {
+			output = []byte(beautifiedCode)
+		}
+	}
+
+	if result.IsObfuscated {
+		output = prependObfuscatedHeader(output, result)
+	}
+
+	return output, result, nil
 }
 
 func init() {

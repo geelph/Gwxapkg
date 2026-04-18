@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-2.6.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.7.0-blue.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.21-00ADD8.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)
@@ -10,320 +10,226 @@
 
 **[中文](README.md) | [English](README_EN.md) | [日本語](README_JA.md)**
 
-A powerful WeChat Mini Program `.wxapkg` unpacking tool built with Go, featuring automatic scanning, decryption, decompilation, and security analysis.
+A Go-based WeChat Mini Program `.wxapkg` unpacker with automatic scanning, decryption, decompilation, and security analysis.
 
 </div>
 
 ---
 
-## ✨ Key Features
+## Important Disclaimer
 
-### 🔍 Smart Unpacking
-- **Auto Scan** - Automatically detect macOS/Windows WeChat Mini Program cache directories
-- **Auto Decrypt** - Support encrypted wxapkg file decryption (PC version)
-- **One-Click Process** - Automatically find and process all files for specified AppID
-- **Subpackage Handling** - Correctly handle main package and subpackage dependencies
-
-### 🎨 Code Restoration
-- **Complete Restoration** - Full support for wxml/wxss/js/json/wxs  
-- **Code Beautification** - Auto-format JavaScript/CSS/HTML code
-- **Directory Structure** - Restore original Mini Program project structure
-- **Resource Extraction** - Complete extraction of images/audio/video resources
-
-### 🔒 Security Analysis ⭐ NEW
-- **Smart Scanning** - 200+ sensitive information detection rules
-- **False Positive Filtering** - Intelligent blacklist, reduces false positives from 95% to 10-15%
-- **Data Deduplication** - Auto-remove duplicate data for precision
-- **Excel Reports** - Professional multi-sheet classified reports with file paths and line numbers
-- **Risk Classification** - Automatic high/medium/low risk categorization
-
-### ⚡ Performance Optimization
-- **Dynamic Concurrency** - Auto-adjust concurrency based on CPU cores
-- **Buffered I/O** - 256KB buffer for significantly improved file read/write performance
-- **Rule Precompilation** - Compile regex at startup to avoid repeated overhead  
-- **Build Optimization** - Use optimized build flags to reduce size and improve speed
+> **This tool is intended only for legally authorized security research, reverse engineering, compatibility verification, learning, and auditing of assets you own or are explicitly authorized to assess.**
+>
+> **Do not use this tool for any unauthorized scenario, including but not limited to unpacking third-party Mini Programs without permission, code or asset theft, bulk scraping, privacy extraction, bypassing platform protections, offensive testing, commercial abuse, risk-control evasion, malware delivery, or any activity that violates laws, platform terms, copyright rules, privacy policies, or internal compliance requirements.**
+>
+> **Before using this tool, you are responsible for confirming that you have clear and valid authorization for the target Mini Program, account, device, environment, business system, and data involved, and for evaluating any legal, compliance, copyright, privacy, data-leakage, account-ban, service-interruption, or third-party claim risks.**
+>
+> **The authors and contributors of this project are not liable for any direct or indirect loss arising from the use, misuse, or abuse of this tool, including but not limited to data leakage, privacy infringement, intellectual property disputes, platform penalties, account suspension, system failures, production incidents, financial loss, administrative penalties, or criminal liability.**
+>
+> **If you cannot verify that your use is authorized, stop immediately. Continuing to use this tool means you understand and accept the above risks and responsibilities.**
 
 ---
 
-## 📊 Supported File Types
+## Key Features
+
+### Smart Unpacking
+- Auto-scan WeChat Mini Program cache directories on macOS and Windows
+- Auto-decrypt encrypted `wxapkg` files from desktop WeChat cache
+- One-command processing for a specified AppID
+- Proper handling of main packages and subpackages
+
+### Code Restoration
+- Full restoration for `wxml`, `wxss`, `js`, `json`, and `wxs`
+- Automatic JavaScript/CSS/HTML formatting
+- Default JavaScript deobfuscation for common string-array, `\xNN`, `\uNNNN`, and hexadecimal literal patterns
+- Restore the original Mini Program project structure
+- Extract images, audio, video, and other resources
+
+### Security Analysis
+- 200+ built-in sensitive-data detection rules
+- Better false-positive filtering and deduplication
+- URL / API endpoint extraction with optional Postman Collection export
+- Excel and HTML reports with file paths and line numbers
+- Obfuscated-file reporting with restoration status
+
+### Performance
+- Dynamic worker count based on CPU cores
+- Buffered file output
+- Regex precompilation
+- Optimized release builds
+
+---
+
+## Supported File Types
 
 | File Type | Support | Description |
 |-----------|---------|-------------|
-| `.wxml` | ✅ | Page structure restoration |
-| `.wxss` | ✅ | Style file restoration |
-| `.js` | ✅ | JavaScript code restoration + beautification |
-| `.json` | ✅ | Configuration file extraction |
-| `.wxs` | ✅ | WXS script restoration |
-| Images/Audio/Video | ✅ | Complete resource file extraction |
+| `.wxml` | Yes | Page structure restoration |
+| `.wxss` | Yes | Style restoration |
+| `.js` | Yes | Restoration, formatting, and default deobfuscation |
+| `.json` | Yes | Config extraction |
+| `.wxs` | Yes | WXS restoration |
+| Images / Audio / Video | Yes | Resource extraction |
 
 ---
 
-## 📥 Installation
+## Installation
 
-### Option 1: Download Precompiled Binary (Recommended)
+### Download Prebuilt Binary
 
-Visit the [Releases](https://github.com/25smoking/Gwxapkg/releases) page to download the executable for your platform.
+Download the appropriate binary from [Releases](https://github.com/25smoking/Gwxapkg/releases).
 
-### Option 2: Build from Source
+### Build from Source
 
 ```bash
-# Clone repository
 git clone https://github.com/25smoking/Gwxapkg.git
 cd Gwxapkg
 
-# Build (optimized version)
 go build -ldflags="-s -w" -o gwxapkg .
-
-# Or run directly
-go run . -h
 ```
 
-**Requirements:** Go 1.21 or higher
+Requirement: Go 1.21 or later.
 
 ---
 
-## 🚀 Quick Start
-
-### Basic Usage
+## Quick Start
 
 ```bash
-# Auto scan and process Mini Program by AppID
-./gwxapkg all -id=<AppID>
-
-# List all available Mini Programs
+# Scan cached Mini Programs
 ./gwxapkg scan
 
-# Unpack single wxapkg file
+# Scan with cache-path diagnostics
+./gwxapkg scan --verbose
+
+# Process a specific AppID
+./gwxapkg all -id=<AppID>
+
+# Process a specific AppID and export Postman Collection
+./gwxapkg all -id=<AppID> -postman
+
+# Scan an already-unpacked directory only
+./gwxapkg scan-only -dir=./output/<AppID> -format=both -postman
+
+# Unpack a single wxapkg file
 ./gwxapkg -id=<AppID> -in=<file_path>
 
 # Repack
 ./gwxapkg repack -in=<directory_path>
 ```
 
-### Command Parameters
+### Common Flags
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `-id` | Mini Program AppID (required) | - |
-| `-in` | Input file/directory path | - |
-| `-out` | Output directory | auto-generated |
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-id` | Mini Program AppID | - |
+| `-in` | Input file or directory | - |
+| `-out` | Output directory | auto |
 | `-restore` | Restore project directory structure | true |
-| `-pretty` | Beautify code output | true |
-| `-sensitive` | Enable sensitive information scanning | true |
-| `-noClean` | Keep intermediate temporary files | false |
-| `-save` | Save decrypted files | false |
+| `-pretty` | Beautify output | true |
+| `-sensitive` | Generate Excel / HTML sensitive reports | true |
+| `-postman` | Export `api_collection.postman_collection.json` | false |
+| `-workspace` | Keep internal workspace for precise repack | false |
+| `--verbose` | Show scan diagnostics for cache candidates | false |
 
-### Usage Examples
+---
 
-```bash
-# Example 1: Auto scan and unpack
-./gwxapkg all -id=wx3c19e32cb8f31289
+## Default Output Directory
 
-# Example 2: Unpack single file only
-./gwxapkg -id=wx123456 -in=test.wxapkg -out=./output
+If `-out` is not provided, results are written to `output/<AppID>`.
 
-# Example 3: Repack
-./gwxapkg repack -in=./source_dir -out=new.wxapkg
+- Compiled binary: under the executable directory
+- `go run .`: under the current working directory
+- Interactive `scan`: also uses `output/<AppID>`
+
+Example:
+
+```text
+/Applications/Gwxapkg/output/wx1234567890abcdef
+./output/wx1234567890abcdef
+```
+
+Typical output:
+
+```text
+output/
+└── wx1234567890abcdef/
+    ├── app.js
+    ├── page-frame.html
+    ├── sensitive_report.xlsx
+    ├── sensitive_report.html
+    ├── api_collection.postman_collection.json
+    └── .gwxapkg/
 ```
 
 ---
 
-## 📁 WeChat Mini Program Cache Locations
+## Security Reports
 
-### macOS
-```
-~/Library/Containers/com.tencent.xinWeChat/Data/Library/Caches/
-├── applet/
-│   ├── release/
-│   └── debug/
-└── ...
-```
+### Report Outputs
 
-### Windows
-```
-%USERPROFILE%\Documents\WeChat Files\Applet\
-├── wx<appid>/
-│   ├── <version>/
-│   │   ├── __APP__.wxapkg      # Main package
-│   │   └── __SUBCONTEXT__.wxapkg  # Subpackage
-│   └── ...
-└── ...
-```
+- `-sensitive=true` generates:
+  - `sensitive_report.xlsx`
+  - `sensitive_report.html`
+- `-postman=true` generates:
+  - `api_collection.postman_collection.json`
+- `-postman` is independent from `-sensitive`
+- `scan-only` reuses the same scanner and deobfuscation pipeline
 
----
+### Obfuscated File Reporting
 
-## 🎯 Sensitive Information Scanning
+When JavaScript matches supported obfuscation patterns, the report records:
 
-### Scanning Rules (200+)
+- File path
+- Score
+- Techniques
+- Status: `restored`, `partial`, or `flagged`
+- Output tag: `[OBFUSCATED] ...`
 
-| Category | Rules | Examples |
-|----------|-------|----------|
-| **Paths** | 1 | File paths, system paths |
-| **URLs** | 2 | HTTP/HTTPS links, API endpoints |
-| **Domains** | 1 | Domain addresses (TLD validation) |
-| **Passwords** | 12+ | Various passwords, database credentials |
-| **API Keys** | 40+ | AWS/Alibaba Cloud/Tencent Cloud keys |
-| **Tokens** | 30+ | JWT/Bearer/OAuth tokens |
-| **Database** | 15+ | MySQL/MongoDB/Redis connection strings |
-| **Contact Info** | 3 | Phone/Email/ID numbers |
-| **WeChat** | 4 | AppID/Secret/Webhook |  
-| **Others** | 90+ | Certificates/Hashes/UUIDs etc. |
+### API Extraction
 
-### Excel Report Contents
-
-Generated reports include the following sheets:
-
-- **Overview** - Scan statistics, risk distribution, category summary
-- **Paths** - All path-related sensitive information
-- **URLs** - All URLs and API endpoints
-- **Domains** - Domain addresses (false positives filtered)
-- **Passwords** - Password and credential information
-- **API Keys** - Various cloud service keys
-- **Tokens** - Access tokens and session information
-- **Database** - Database connection information
-- **Contact Info** - Phone numbers, emails, etc.
-- **WeChat** - WeChat-related configurations
-- **Others** - Other sensitive information
-
-Each entry contains:
-- ✅ Content
-- ✅ Occurrence count
-- ✅ File path  
-- ✅ Line number
-- ✅ Risk level
+- URLs and API endpoints are extracted from the same scan report
+- Relative paths remain unchanged
+- If the HTTP method cannot be inferred safely, it is exported as `UNKNOWN`
 
 ---
 
-## 📈 Performance Comparison (v2.5.0 vs v1.0)
+## Rule Configuration
 
-| Metric | v1.0 | v2.5.0 | Improvement |
-|--------|------|--------|-------------|
-| **Scan Speed** | Baseline | +50-70% | ⬆️⬆️⬆️ Rule precompilation |
-| **False Positive Rate** | ~95% | 10-15% | ⬇️⬇️⬇️ Smart filtering |
-| **Data Volume** | 127,185 items | ~3,000 items | ⬇️⬇️⬇️ Dedup + filtering |
-| **Output Format** | JSON | Excel | ✅ Professional reports |
-| **Concurrency** | Fixed 10 | Dynamic CPU*2 | ⬆️⬆️ Adaptive |
-| **I/O Performance** | Direct write | 256KB buffer | ⬆️⬆️ Fewer syscalls |
+- Built-in rules are enabled by default
+- The tool no longer auto-generates `config/rule.yaml`
+- If you manually provide `config/rule.yaml`, your custom rules override the built-in set
 
 ---
 
-## 🔄 Version History
+## v2.7.0 Highlights
 
-### v2.5.0 (2025-12-05) - 🎉 Major Update
+- Postman Collection export
+- Default JavaScript deobfuscation
+- Obfuscated-file reporting in Excel / HTML
+- `scan-only` mode
+- `scan --verbose` and `all --verbose`
+- Safer unpacking with path validation, hard limits, and staged errors
+- Built-in rules enabled by default
+- Manual GitHub Actions triggers for CI and Release
 
-#### 🆕 New Features
-- ✨ **Excel Report Generation** - Professional multi-sheet classified reports replacing simple JSON
-- 🎯 **Smart False Positive Filtering** - Blacklist + TLD validation + context detection, 85% reduction in false positives
-- 📊 **Data Deduplication** - Auto-deduplication, 97% reduction in data volume
-- 🏷️ **Risk Classification** - Automatic high/medium/low risk categorization
-- 📍 **Complete Context** - Each entry includes file path and line number
-
-#### ⚡ Performance Optimizations
-- 🚀 **Dynamic Concurrency** - Auto-adjust worker count based on CPU cores (previously fixed 10 → CPU*2)
-- 💾 **Buffered I/O** - 256KB buffer improves file read/write performance
-- 🔧 **Rule Precompilation** - Compile all regex at startup to avoid repeated overhead
-- 📦 **Build Optimization** - Use `-ldflags="-s -w"` to reduce binary size
-
-#### 🐛 Bug Fixes
-- Fixed domain rule falsely matching filenames (e.g., index.weapp)
-- Fixed JavaScript APIs being misidentified as domains
-- Optimized directory merge performance
-
-#### 💡 Technical Improvements
-- Added `internal/scanner` module (types, filter, collector, scanner)
-- Added `internal/reporter` module (Excel report generation)
-- Use `excelize/v2` library to generate professional Excel reports
-- Complete unit test coverage
-
-### v1.0.0 (2024-XX-XX)
-- 🎉 Initial release
-- ✅ Basic unpacking functionality
-- ✅ Code beautification
-- ✅ Sensitive information scanning (JSON output)
+For the full release summary, see [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ---
 
-## 🛠️ Technical Architecture
+## GitHub Actions
 
-```
-Gwxapkg/
-├── cmd/
-│   └── root.go           # CLI entry, progress bar, report generation
-├── internal/
-│   ├── cmd/              # Command processing, file parsing
-│   ├── decrypt/          # AES+XOR decryption
-│   ├── unpack/           # wxapkg binary parsing
-│   ├── restore/          # Project structure restoration
-│   ├── formatter/        # Code beautification (JS/CSS/HTML)
-│   ├── key/              # Rule management, precompilation
-│   ├── scanner/          # ⭐ NEW Scanning engine
-│   │   ├── types.go      # Data models
-│   │   ├── filter.go     # False positive filtering
-│   │   ├── collector.go  # Data collection and deduplication
-│   │   └── scanner.go    # Scanning logic
-│   ├── reporter/         # ⭐ NEW Report generation
-│   │   └── excel.go      # Excel reports
-│   ├── config/           # Configuration management
-│   └── ui/               # Terminal UI
-├── config/
-│   └── rule.yaml         # 200+ sensitive info rules
-└── main.go
-```
+This repository includes two workflows:
+
+- `CI`
+  - Triggered by push to `main`, pull requests to `main`, or manual run
+  - Runs `go build` and `go test`
+- `Release`
+  - Triggered by version tags like `v2.7.0` or manual run
+  - Builds Windows, Linux, macOS Intel, and macOS Apple Silicon binaries
+  - Publishes them to GitHub Releases
 
 ---
 
-## 🤝 Contributing
+## License
 
-Contributions are welcome! Please follow these steps:
-
-1. Fork this repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Create Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
-
----
-
-## ❓ FAQ
-
-### 1. Why does it "crash" or close immediately when double-clicked?
-**This is a Command Line Interface (CLI) tool** and cannot be run by double-clicking.
-- **Wrong way**: Double-clicking `gwxapkg.exe` in File Explorer. This causes the window to close immediately after the program finishes or errors out.
-- **Correct way**: Open a terminal (CMD, PowerShell, or Terminal), `cd` to the tool's directory, and run the command there.
-
-### 2. Mini Program package not found?
-Ensure you have logged into the PC version of WeChat and opened the target Mini Program. If it still cannot be found, try using the `scan` command to manually verify if the detected path is correct.
-
----
-
-## 📩 Contact
-
-Please specify your purpose when adding on WeChat. **Note: Basic "1+1" level questions (e.g., how to open a terminal, how to install Go, etc.) will NOT be answered. Please use a search engine.**
-
-<img src="https://i.imgur.com/9PxS5IK.jpeg" width="300" />
-
----
-
-## ⚠️ Disclaimer
-
-This tool is for educational and research purposes only. Do not use for illegal purposes. Users are responsible for any consequences resulting from using this tool.
-
----
-
-## 🌟 Star History
-
-If this project helps you, please give it a ⭐ Star!
-
----
-
-<div align="center">
-
-**Made with ❤️ by [25smoking](https://github.com/25smoking)**
-
-</div>
+This project is licensed under the MIT License. See [LICENSE](LICENSE).

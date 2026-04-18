@@ -17,6 +17,8 @@ import (
 	"github.com/25smoking/Gwxapkg/internal/unpack"
 )
 
+const defaultOutputRootDirName = "output"
+
 // ParseInput 解析输入文件
 func ParseInput(input, fileExt string) []string {
 	var inputFiles []string
@@ -46,27 +48,62 @@ func ParseInput(input, fileExt string) []string {
 
 // DetermineOutputDir 确定输出目录
 func DetermineOutputDir(input, appID string) string {
-	var baseDir string
-
-	if fileInfo, err := os.Stat(input); err == nil && fileInfo.IsDir() {
-		baseDir = input
-	} else {
-		baseDir = filepath.Dir(input)
+	execPath, err := os.Executable()
+	if err != nil {
+		execPath = ""
 	}
 
+	workDir, err := os.Getwd()
+	if err != nil {
+		workDir = ""
+	}
+
+	baseDir := resolveOutputBaseDir(execPath, workDir, os.TempDir())
+	return buildDefaultOutputDir(baseDir, appID)
+}
+
+func buildDefaultOutputDir(baseDir, appID string) string {
+	rootDir := filepath.Join(baseDir, defaultOutputRootDirName)
 	if appID == "" {
-		return filepath.Join(baseDir, "result")
+		return filepath.Join(rootDir, "result")
 	}
 
-	// 检查路径中是否已经包含 AppID 目录，避免重复嵌套
-	// 例如：输入路径为 .../wx123456/68/ 时，不需要再追加 wx123456
-	parentDir := filepath.Base(filepath.Dir(baseDir))
-	if parentDir == appID {
-		// 父目录已经是 AppID，直接使用 baseDir
-		return baseDir
+	return filepath.Join(rootDir, appID)
+}
+
+func resolveOutputBaseDir(execPath, workDir, tempDir string) string {
+	execDir := ""
+	if execPath != "" {
+		execDir = filepath.Dir(execPath)
 	}
 
-	return filepath.Join(baseDir, appID)
+	if execDir != "" && !isGoBuildTempDir(execDir, tempDir) {
+		return execDir
+	}
+
+	if workDir != "" {
+		return workDir
+	}
+
+	if execDir != "" {
+		return execDir
+	}
+
+	return "."
+}
+
+func isGoBuildTempDir(dir, tempDir string) bool {
+	if dir == "" || tempDir == "" {
+		return false
+	}
+
+	cleanDir := filepath.Clean(dir)
+	cleanTempDir := filepath.Clean(tempDir)
+	if cleanDir != cleanTempDir && !strings.HasPrefix(cleanDir, cleanTempDir+string(os.PathSeparator)) {
+		return false
+	}
+
+	return strings.Contains(cleanDir, "go-build")
 }
 
 // ProcessFile 合并目录
@@ -121,9 +158,9 @@ func ProcessFile(inputFile, outputDir, appID string, save bool, workspace bool) 
 	// 包文件列表
 	var filelist []string
 
-	filelist, err = unpack.UnpackWxapkg(decryptedData, tempDir)
+	filelist, err = unpack.UnpackWxapkg(decryptedData, inputFile, tempDir)
 	if err != nil {
-		return fmt.Errorf("解包失败: %v", err)
+		return err
 	}
 
 	// 设置解包状态

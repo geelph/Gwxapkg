@@ -3,6 +3,7 @@ package reporter
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/25smoking/Gwxapkg/internal/scanner"
 	"github.com/xuri/excelize/v2"
@@ -39,6 +40,10 @@ func (r *ExcelReporter) Generate(report *scanner.ScanReport, filename string) er
 		if err := r.createCategorySheet(category, data); err != nil {
 			return fmt.Errorf("创建分类页 %s 失败: %w", category, err)
 		}
+	}
+
+	if err := r.createObfuscatedSheet(report); err != nil {
+		return fmt.Errorf("创建混淆文件页失败: %w", err)
 	}
 
 	// 3. 应用样式
@@ -79,7 +84,7 @@ func (r *ExcelReporter) createOverviewSheet(report *scanner.ScanReport) error {
 	// 统计摘要
 	r.file.SetCellValue(sheet, "A7", "统计摘要")
 	r.file.MergeCell(sheet, "A7", "D7")
-	
+
 	r.file.SetCellValue(sheet, "A8", "总匹配数:")
 	r.file.SetCellValue(sheet, "B8", report.Summary.TotalMatches)
 	r.file.SetCellValue(sheet, "A9", "去重后:")
@@ -90,23 +95,25 @@ func (r *ExcelReporter) createOverviewSheet(report *scanner.ScanReport) error {
 	r.file.SetCellValue(sheet, "B11", report.Summary.MediumRisk)
 	r.file.SetCellValue(sheet, "A12", "低风险:")
 	r.file.SetCellValue(sheet, "B12", report.Summary.LowRisk)
+	r.file.SetCellValue(sheet, "A13", "混淆文件数:")
+	r.file.SetCellValue(sheet, "B13", len(report.ObfuscatedFiles))
 
 	// 分类统计表头
-	r.file.SetCellValue(sheet, "A14", "分类统计")
-	r.file.MergeCell(sheet, "A14", "C14")
-	
-	r.file.SetCellValue(sheet, "A15", "分类")
-	r.file.SetCellValue(sheet, "B15", "数量")
-	r.file.SetCellValue(sheet, "C15", "占比")
+	r.file.SetCellValue(sheet, "A15", "分类统计")
+	r.file.MergeCell(sheet, "A15", "C15")
+
+	r.file.SetCellValue(sheet, "A16", "分类")
+	r.file.SetCellValue(sheet, "B16", "数量")
+	r.file.SetCellValue(sheet, "C16", "占比")
 
 	// 分类统计数据
-	row := 16
+	row := 17
 	totalUnique := report.Summary.UniqueMatches
 	for category, count := range report.Summary.CategoryStats {
 		categoryName := report.Categories[category].Name
 		r.file.SetCellValue(sheet, fmt.Sprintf("A%d", row), categoryName)
 		r.file.SetCellValue(sheet, fmt.Sprintf("B%d", row), count)
-		
+
 		percentage := float64(count) / float64(totalUnique) * 100
 		r.file.SetCellValue(sheet, fmt.Sprintf("C%d", row), fmt.Sprintf("%.1f%%", percentage))
 		row++
@@ -122,12 +129,12 @@ func (r *ExcelReporter) createOverviewSheet(report *scanner.ScanReport) error {
 // createCategorySheet 创建分类页
 func (r *ExcelReporter) createCategorySheet(category string, data *scanner.CategoryData) error {
 	sheetName := data.Name
-	
+
 	// Excel sheet 名称不能超过 31 字符
 	if len(sheetName) > 31 {
 		sheetName = sheetName[:31]
 	}
-	
+
 	_, err := r.file.NewSheet(sheetName)
 	if err != nil {
 		return err
@@ -178,6 +185,37 @@ func (r *ExcelReporter) createCategorySheet(category string, data *scanner.Categ
 	r.file.SetColWidth(sheetName, "C", "C", 12)
 	r.file.SetColWidth(sheetName, "D", "D", 40)
 	r.file.SetColWidth(sheetName, "E", "E", 10)
+
+	return nil
+}
+
+func (r *ExcelReporter) createObfuscatedSheet(report *scanner.ScanReport) error {
+	sheetName := "混淆文件"
+	if _, err := r.file.NewSheet(sheetName); err != nil {
+		return err
+	}
+
+	headers := []string{"序号", "文件路径", "状态", "分数", "命中技术", "标签"}
+	for i, header := range headers {
+		cell := fmt.Sprintf("%s1", string(rune('A'+i)))
+		r.file.SetCellValue(sheetName, cell, header)
+	}
+
+	for index, file := range report.ObfuscatedFiles {
+		row := index + 2
+		r.file.SetCellValue(sheetName, fmt.Sprintf("A%d", row), index+1)
+		r.file.SetCellValue(sheetName, fmt.Sprintf("B%d", row), file.FilePath)
+		r.file.SetCellValue(sheetName, fmt.Sprintf("C%d", row), file.Status)
+		r.file.SetCellValue(sheetName, fmt.Sprintf("D%d", row), file.Score)
+		r.file.SetCellValue(sheetName, fmt.Sprintf("E%d", row), strings.Join(file.Techniques, ", "))
+		r.file.SetCellValue(sheetName, fmt.Sprintf("F%d", row), file.Tag)
+	}
+
+	r.file.SetColWidth(sheetName, "A", "A", 8)
+	r.file.SetColWidth(sheetName, "B", "B", 48)
+	r.file.SetColWidth(sheetName, "C", "D", 12)
+	r.file.SetColWidth(sheetName, "E", "E", 36)
+	r.file.SetColWidth(sheetName, "F", "F", 52)
 
 	return nil
 }
@@ -234,11 +272,14 @@ func (r *ExcelReporter) applyStyles() {
 			r.file.SetCellStyle(sheet, "A1", "D1", titleStyle)
 			// 小标题
 			r.file.SetCellStyle(sheet, "A7", "D7", subtitleStyle)
-			r.file.SetCellStyle(sheet, "A14", "C14", subtitleStyle)
+			r.file.SetCellStyle(sheet, "A15", "C15", subtitleStyle)
 			// 表头行
-			r.file.SetCellStyle(sheet, "A15", "C15", headerStyle)
+			r.file.SetCellStyle(sheet, "A16", "C16", headerStyle)
 		} else {
-			// 分类页表头行
+			if sheet == "混淆文件" {
+				r.file.SetCellStyle(sheet, "A1", "F1", headerStyle)
+				continue
+			}
 			r.file.SetCellStyle(sheet, "A1", "E1", headerStyle)
 		}
 	}

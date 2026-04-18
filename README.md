@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-2.6.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.7.0-blue.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.21-00ADD8.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)
@@ -13,6 +13,20 @@
 一款基于Go实现的微信小程序 `.wxapkg` 解包工具，支持自动扫描、解密、反编译和安全分析。
 
 </div>
+
+---
+
+## ⚠️ 重要免责声明
+
+> **本工具仅供合法授权前提下的安全研究、逆向分析、兼容性验证、学习交流与自有资产审计使用。**
+>
+> **严禁将本工具用于任何未授权场景，包括但不限于：未获许可的小程序解包、代码或资源盗用、批量采集、隐私数据提取、绕过平台保护、攻击测试、商业滥用、规避风控、传播恶意代码，以及任何违反法律法规、平台协议、版权规则、隐私政策或企业内部制度的行为。**
+>
+> **使用者在操作前，应自行确认对目标小程序、账号、设备、网络环境、业务系统及相关数据拥有充分、明确且持续有效的授权，并自行评估解包、分析、回包、重打包、接口调用、自动化扫描等操作可能带来的法律风险、合规风险、版权风险、隐私风险、数据泄露风险、账号封禁风险、业务中断风险及第三方索赔风险。**
+>
+> **本项目作者及贡献者不对任何直接或间接损失负责，包括但不限于：数据泄露、隐私侵权、知识产权纠纷、平台处罚、账号封禁、系统故障、生产事故、经济损失、行政处罚或刑事责任。凡因使用、误用、滥用本工具产生的一切后果，均由使用者自行承担。**
+>
+> **如果你无法确认目标是否具有合法授权，请立即停止使用。继续使用即视为你已充分理解并接受上述全部风险与责任。**
 
 ---
 
@@ -27,15 +41,18 @@
 ### 🎨 代码还原
 - **完整还原** - wxml/wxss/js/json/wxs 全部支持
 - **代码美化** - 自动格式化 JavaScript/CSS/HTML 代码
+- **默认反混淆** - JavaScript 默认执行静态还原 + 受控解码，优先展开常见字符串数组、`\xNN`、`\uNNNN`、十六进制字面量
 - **目录结构** - 还原微信小程序原始工程目录
 - **资源提取** - 图片/音频/视频等资源文件完整提取
 
-### � 安全分析 ⭐ NEW
+### 🛡️ 安全分析 ⭐ NEW
 - **智能扫描** - 200+ 敏感信息检测规则
 - **误报过滤** - 智能黑名单，误报率从95%降至10-15%
 - **数据去重** - 自动去除重复数据，精准定位
-- **Excel报告** - 专业的多Sheet分类报告，包含文件路径和行号
+- **接口提取** - 自动提取 URL / API Endpoint，并可导出 Postman Collection
+- **Excel/HTML报告** - 专业多Sheet Excel 与交互式 HTML 报告，包含文件路径和行号
 - **风险分级** - 高/中/低风险自动分类
+- **混淆标记** - 在报告中单独列出命中的混淆文件及还原状态
 
 ### ⚡ 性能优化
 - **动态并发** - 根据CPU核心数自动调整并发度
@@ -51,7 +68,7 @@
 |----------|----------|------|
 | `.wxml` | ✅ | 页面结构还原 |
 | `.wxss` | ✅ | 样式文件还原 |
-| `.js` | ✅ | JavaScript 代码还原 + 美化 |
+| `.js` | ✅ | JavaScript 代码还原 + 美化 + 默认反混淆 |
 | `.json` | ✅ | 配置文件提取 |
 | `.wxs` | ✅ | WXS 脚本还原 |
 | 图片/音频/视频 | ✅ | 资源文件完整提取 |
@@ -93,8 +110,14 @@ go run . -h
 # 查看所有可用的小程序
 ./gwxapkg scan
 
+# 查看微信缓存候选路径诊断
+./gwxapkg scan --verbose
+
 # 解包单个 wxapkg 文件
 ./gwxapkg -id=<AppID> -in=<文件路径>
+
+# 对已解包目录独立扫描，并额外导出 Postman Collection
+./gwxapkg scan-only -dir=<目录> -format=both -postman
 
 # 重新打包
 ./gwxapkg repack -in=<目录路径>
@@ -110,8 +133,11 @@ go run . -h
 | `-restore` | 还原工程目录结构 | true |
 | `-pretty` | 美化代码输出 | true |
 | `-sensitive` | 启用敏感信息扫描 | true |
+| `-postman` | 导出 `api_collection.postman_collection.json` | false |
 | `-noClean` | 保留中间临时文件 | false |
 | `-save` | 保存解密后的文件 | false |
+| `-workspace` | 保留可精确回包的隐藏工作区 | false |
+| `--verbose` | 输出微信缓存候选路径诊断（仅 `scan` / `all`） | false |
 
 ### 使用示例
 
@@ -119,11 +145,45 @@ go run . -h
 # 示例1: 自动扫描并处理
 ./gwxapkg all -id=wx3c19e32cb8f31289
 
-# 示例2: 仅解包单个文件
+# 示例2: 解包并导出 Postman Collection
+./gwxapkg all -id=wx3c19e32cb8f31289 -postman
+
+# 示例3: 仅解包单个文件
 ./gwxapkg -id=wx123456 -in=test.wxapkg -out=./output
 
-# 示例3: 重新打包
+# 示例4: 对已解包目录重新扫描
+./gwxapkg scan-only -dir=./output/wx123456 -format=both -postman
+
+# 示例5: 重新打包
 ./gwxapkg repack -in=./source_dir -out=new.wxapkg
+```
+
+### 默认输出目录
+
+未指定 `-out` 时，输出目录规则如下：
+
+- 正式编译后的可执行程序：输出到程序所在目录下的 `output/<AppID>`
+- `go run .` 或开发环境：输出到当前工作目录下的 `output/<AppID>`
+- `scan` 交互模式：默认同样落到 `output/<AppID>`
+
+示例：
+
+```text
+/Applications/Gwxapkg/output/wx1234567890abcdef
+./output/wx1234567890abcdef
+```
+
+### 典型输出结构
+
+```text
+output/
+└── wx1234567890abcdef/
+    ├── app.js
+    ├── page-frame.html
+    ├── sensitive_report.xlsx
+    ├── sensitive_report.html
+    ├── api_collection.postman_collection.json
+    └── .gwxapkg/                   # 仅在 -workspace=true 时生成
 ```
 
 ---
@@ -169,9 +229,18 @@ go run . -h
 | **微信** | 4 | AppID/Secret/Webhook |
 | **其他** | 90+ | 证书/哈希/UUID等 |
 
-### Excel报告内容
+### 扫描与导出行为
 
-生成的报告包含以下Sheet：
+- `-sensitive=true` 时生成 `sensitive_report.xlsx` 和 `sensitive_report.html`
+- `-postman=true` 时生成 `api_collection.postman_collection.json`
+- `-postman` 与 `-sensitive` 解耦，可以单独开启
+- `scan-only` 会复用同一套扫描器与 JS 反混淆逻辑
+- 无法可靠推断 HTTP 方法时，Postman 中会写入 `UNKNOWN`
+- 相对接口路径会原样保留，不会自动拼接 `baseUrl`
+
+### 报告内容
+
+生成的 Excel / HTML 报告包含以下内容：
 
 - **概览** - 扫描统计、风险分布、分类汇总
 - **路径** - 所有路径类敏感信息
@@ -184,6 +253,7 @@ go run . -h
 - **联系信息** - 手机号、邮箱等
 - **微信** - 微信相关配置
 - **其他** - 其他敏感信息
+- **混淆文件** - 命中的混淆文件、分数、技术点、还原状态
 
 每条数据包含：
 - ✅ 内容（Content）
@@ -192,22 +262,85 @@ go run . -h
 - ✅ 行号
 - ✅ 风险等级
 
+混淆文件额外包含：
+- ✅ 状态（`restored` / `partial` / `flagged`）
+- ✅ 分数（Score）
+- ✅ 命中技术（Techniques）
+- ✅ 标签（`[OBFUSCATED] ...`）
+
+### Postman Collection 示例
+
+```json
+{
+  "info": {
+    "name": "wx1234567890abcdef - API Collection"
+  },
+  "item": [
+    {
+      "name": "POST /api/user/login",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "/api/user/login"
+        }
+      }
+    }
+  ]
+}
+```
+
+### 规则配置说明
+
+- 默认情况下，程序会直接使用内置规则集
+- 不会自动写出 `config/rule.yaml`
+- 如果你手动放置了 `config/rule.yaml`，则优先使用你的自定义规则覆盖内置规则
+- 适合在不改源码的情况下按自己的审计口径裁剪规则
+
 ---
 
-## 📈 性能对比（v2.5.0 vs v1.0）
+## 📈 性能对比（v2.7.0 vs v1.0）
 
-| 指标 | v1.0 | v2.5.0 | 改进 |
+| 指标 | v1.0 | v2.7.0 | 改进 |
 |------|------|--------|------|
 | **扫描速度** | 基准 | +50-70% | ⬆️⬆️⬆️ 规则预编译 |
 | **误报率** | ~95% | 10-15% | ⬇️⬇️⬇️ 智能过滤 |  
 | **数据量** | 127,185条 | ~3,000条 | ⬇️⬇️⬇️ 去重+过滤 |
-| **输出格式** | JSON | Excel | ✅ 专业报告 |
+| **输出格式** | JSON | Excel/HTML | ✅ 交互式报告 |
 | **并发性能** | 10固定 | CPU*2动态 | ⬆️⬆️ 自适应 |
 | **I/O性能** | 直接写入 | 256KB缓冲 | ⬆️⬆️ 减少系统调用 |
 
 ---
 
 ## 🔄 版本更新
+
+### v2.7.0 (2026-04-18) - 💥 大版本功能增强
+
+#### 🆕 新增功能
+- 📊 **HTML 交互式报告** - 新增了美观的可视化安全分析 HTML 报告格式，带饼图、快速过滤与分类选项。
+- 🔍 **`scan-only` 独立命令** - 支持对纯净的已解包目录直接发起代码/敏感信息审查，不被解包流程束缚。
+- 🗂️ **全自动化集成流** - 深度融入 GitHub Actions，支持跨平台 Release 推送及 CI 测试流程。
+- 🪟 **Windows AppName 提取** - Gwxapkg 现在能提取出小程序包名称。
+- ⚙️ **批量扫描支持扩展** - 支持通过 `-id="wx1,wx2"` 以及 `-id-file=ids.txt` 大规模批量化导出特定程序。
+- 📮 **Postman Collection 导出** - `all` / 默认命令 / `scan` / `scan-only` 均支持 `-postman`
+- 🧠 **默认 JS 反混淆** - 增加静态还原、AST 识别、受控 `goja` 解码执行
+- 🏷️ **混淆文件报告** - Excel / HTML 概览新增混淆文件统计，并提供单独清单
+- 🧭 **缓存路径诊断** - `scan --verbose` / `all --verbose` 输出微信缓存候选路径诊断
+- 📦 **内置规则优先** - 默认直接使用内置规则，不再自动生成 `rule.yaml`
+
+### v2.6.0 (2026-03-17) - 🚀 稳定版本
+
+#### 🆕 新增功能
+- 🔧 **稳定性提升** - 修复若干已知问题，提升整体运行稳定性
+- 📈 **规则优化** - 持续优化敏感信息扫描规则，减少误报
+- 🖥️ **兼容性增强** - 改善 Windows/macOS/Linux 跨平台兼容性
+- 📦 **依赖更新** - 更新第三方依赖至最新稳定版本
+
+#### 🐛 修复问题
+- 修复部分情况下分包处理异常的问题
+- 修复 Excel 报告在特殊字符时的生成错误
+- 优化大型小程序的内存占用
+
+---
 
 ### v2.5.0 (2025-12-05) - 🎉 重大更新
 
@@ -254,19 +387,24 @@ Gwxapkg/
 │   ├── decrypt/          # AES+XOR解密
 │   ├── unpack/           # wxapkg二进制解析
 │   ├── restore/          # 工程结构还原
-│   ├── formatter/        # 代码美化（JS/CSS/HTML）
+│   ├── formatter/        # 代码美化与 JS 反混淆
+│   │   ├── jsformatter.go
+│   │   └── deobfuscator.go
 │   ├── key/              # 规则管理，预编译
 │   ├── scanner/          # ⭐ NEW 扫描引擎
 │   │   ├── types.go      # 数据模型
 │   │   ├── filter.go     # 误报过滤
 │   │   ├── collector.go  # 数据收集和去重
-│   │   └── scanner.go    # 扫描逻辑
+│   │   ├── scanner.go    # 扫描逻辑
+│   │   └── api_extractor.go
 │   ├── reporter/         # ⭐ NEW 报告生成
-│   │   └── excel.go      # Excel报告
+│   │   ├── excel.go      # Excel报告
+│   │   ├── html.go       # HTML报告
+│   │   └── postman.go    # Postman Collection 导出
 │   ├── config/           # 配置管理
 │   └── ui/               # 终端UI
 ├── config/
-│   └── rule.yaml         # 200+ 敏感信息规则
+│   └── rule.yaml         # 可选的自定义规则覆盖文件
 └── main.go
 ```
 
@@ -310,9 +448,17 @@ Gwxapkg/
 
 ---
 
-## ⚠️ 免责声明
+## ☕ 请我喝咖啡
 
-本工具仅供学习和研究使用，请勿用于非法用途。使用本工具产生的任何后果由使用者自行承担。
+如果这个工具帮助了你，欢迎请我喝杯咖啡 ☕，这将是对我持续更新的最大动力！
+
+### 💝 赞助记录
+
+| 日期 | 方式 | 备注 | 金额 |
+|------|------|------|------|
+| 2026/04/17 | WeChat | UR的出不克 | 50 CNY |
+
+感谢每一位支持者！🙏
 
 ---
 

@@ -2,29 +2,38 @@ package scanner
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 )
 
 // DataCollector 数据收集器
 type DataCollector struct {
-	mu         sync.Mutex
-	items      []SensitiveItem
-	dedup      map[string]*DedupInfo
-	categories map[string]*CategoryData
-	appID      string
-	totalFiles int
-	filter     *SensitiveFilter
+	mu              sync.Mutex
+	items           []SensitiveItem
+	dedup           map[string]*DedupInfo
+	categories      map[string]*CategoryData
+	apiEndpoints    []APIEndpoint
+	apiDedup        map[string]struct{}
+	obfuscatedFiles []ObfuscatedFile
+	obfuscatedIndex map[string]int
+	appID           string
+	totalFiles      int
+	filter          *SensitiveFilter
 }
 
 // NewCollector 创建收集器
 func NewCollector(appID string) *DataCollector {
 	return &DataCollector{
-		items:      make([]SensitiveItem, 0),
-		dedup:      make(map[string]*DedupInfo),
-		categories: make(map[string]*CategoryData),
-		appID:      appID,
-		filter:     NewFilter(),
+		items:           make([]SensitiveItem, 0),
+		dedup:           make(map[string]*DedupInfo),
+		categories:      make(map[string]*CategoryData),
+		apiEndpoints:    make([]APIEndpoint, 0),
+		apiDedup:        make(map[string]struct{}),
+		obfuscatedFiles: make([]ObfuscatedFile, 0),
+		obfuscatedIndex: make(map[string]int),
+		appID:           appID,
+		filter:          NewFilter(),
 	}
 }
 
@@ -63,6 +72,53 @@ func (c *DataCollector) Add(item SensitiveItem) {
 		// 添加到分类
 		c.addToCategory(item)
 	}
+}
+
+// AddAPIEndpoint 添加接口信息
+func (c *DataCollector) AddAPIEndpoint(endpoint APIEndpoint) {
+	if endpoint.RawURL == "" {
+		return
+	}
+
+	if endpoint.Method == "" {
+		endpoint.Method = "UNKNOWN"
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	key := fmt.Sprintf("%s:%s", endpoint.Method, endpoint.RawURL)
+	if _, exists := c.apiDedup[key]; exists {
+		return
+	}
+
+	c.apiDedup[key] = struct{}{}
+	c.apiEndpoints = append(c.apiEndpoints, endpoint)
+}
+
+// AddObfuscatedFile 添加混淆文件信息
+func (c *DataCollector) AddObfuscatedFile(file ObfuscatedFile) {
+	if file.FilePath == "" {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if idx, exists := c.obfuscatedIndex[file.FilePath]; exists {
+		current := c.obfuscatedFiles[idx]
+		current.Score = max(current.Score, file.Score)
+		current.Techniques = mergeTechniques(current.Techniques, file.Techniques)
+		current.Status = mergeObfuscatedStatus(current.Status, file.Status)
+		if current.Tag == "" {
+			current.Tag = file.Tag
+		}
+		c.obfuscatedFiles[idx] = current
+		return
+	}
+
+	c.obfuscatedIndex[file.FilePath] = len(c.obfuscatedFiles)
+	c.obfuscatedFiles = append(c.obfuscatedFiles, file)
 }
 
 // addToCategory 添加到分类
@@ -105,12 +161,14 @@ func (c *DataCollector) GenerateReport() *ScanReport {
 	summary := c.generateSummary()
 
 	return &ScanReport{
-		AppID:      c.appID,
-		ScanTime:   time.Now().Format("2006-01-02 15:04:05"),
-		TotalFiles: c.totalFiles,
-		Categories: c.categories,
-		Items:      c.items,
-		Summary:    summary,
+		AppID:           c.appID,
+		ScanTime:        time.Now().Format("2006-01-02 15:04:05"),
+		TotalFiles:      c.totalFiles,
+		Categories:      c.categories,
+		Items:           c.items,
+		APIEndpoints:    slices.Clone(c.apiEndpoints),
+		ObfuscatedFiles: cloneObfuscatedFiles(c.obfuscatedFiles),
+		Summary:         summary,
 	}
 }
 
@@ -146,6 +204,50 @@ func (c *DataCollector) generateSummary() ReportSummary {
 	return summary
 }
 
+func mergeTechniques(left, right []string) []string {
+	if len(left) == 0 {
+		return slices.Clone(right)
+	}
+
+	seen := make(map[string]struct{}, len(left)+len(right))
+	merged := make([]string, 0, len(left)+len(right))
+	for _, technique := range append(slices.Clone(left), right...) {
+		if technique == "" {
+			continue
+		}
+		if _, exists := seen[technique]; exists {
+			continue
+		}
+		seen[technique] = struct{}{}
+		merged = append(merged, technique)
+	}
+	return merged
+}
+
+func mergeObfuscatedStatus(left, right string) string {
+	order := map[string]int{
+		"":         0,
+		"flagged":  1,
+		"partial":  2,
+		"restored": 3,
+	}
+
+	if order[right] > order[left] {
+		return right
+	}
+	return left
+}
+
+func cloneObfuscatedFiles(files []ObfuscatedFile) []ObfuscatedFile {
+	result := make([]ObfuscatedFile, 0, len(files))
+	for _, file := range files {
+		cloned := file
+		cloned.Techniques = slices.Clone(file.Techniques)
+		result = append(result, cloned)
+	}
+	return result
+}
+
 // getCategoryKey 根据 rule_id 获取分类 key
 func getCategoryKey(ruleID string) string {
 	categoryMap := map[string]string{
@@ -153,65 +255,65 @@ func getCategoryKey(ruleID string) string {
 		"url":          "url",
 		"api_endpoint": "url",
 		"domain":       "domain",
-		
+
 		// 密码和密钥
-		"password_generic":   "password",
-		"admin_password":     "password",
-		"root_password":      "password",
-		"default_password":   "password",
-		"test_password":      "password",
-		"ftp_password":       "password",
-		"smtp_password":      "password",
-		"ldap_password":      "password",
-		"vpn_password":       "password",
-		"wifi_password":      "password",
+		"password_generic":    "password",
+		"admin_password":      "password",
+		"root_password":       "password",
+		"default_password":    "password",
+		"test_password":       "password",
+		"ftp_password":        "password",
+		"smtp_password":       "password",
+		"ldap_password":       "password",
+		"vpn_password":        "password",
+		"wifi_password":       "password",
 		"encryption_password": "password",
-		"username_password":  "password",
-		
+		"username_password":   "password",
+
 		// API Keys
-		"api_key_generic":     "api_key",
-		"aws_access_key_id":   "api_key",
-		"aliyun_access_key":   "api_key",
-		"tencent_secret_id":   "api_key",
-		"google_api_key":      "api_key",
-		"github_pat":          "api_key",
-		"gitlab_pat":          "api_key",
-		
+		"api_key_generic":   "api_key",
+		"aws_access_key_id": "api_key",
+		"aliyun_access_key": "api_key",
+		"tencent_secret_id": "api_key",
+		"google_api_key":    "api_key",
+		"github_pat":        "api_key",
+		"gitlab_pat":        "api_key",
+
 		// Secrets
-		"secret_key_generic":  "secret",
+		"secret_key_generic":    "secret",
 		"aws_secret_access_key": "secret",
-		"client_secret":       "secret",
-		"app_secret":          "secret",
-		"wechat_secret":       "secret",
-		
+		"client_secret":         "secret",
+		"app_secret":            "secret",
+		"wechat_secret":         "secret",
+
 		// Tokens
-		"bearer_token":        "token",
-		"api_token":           "token",
-		"auth_token":          "token",
-		"session_token":       "token",
-		"access_token":        "token",
-		
+		"bearer_token":  "token",
+		"api_token":     "token",
+		"auth_token":    "token",
+		"session_token": "token",
+		"access_token":  "token",
+
 		// 数据库
-		"jdbc_mysql":          "database",
-		"jdbc_postgresql":     "database",
-		"jdbc_oracle":         "database",
-		"mongodb_connection":  "database",
-		"redis_connection":    "database",
-		"db_username":         "database",
-		"db_password":         "database",
-		"db_host":             "database",
-		
+		"jdbc_mysql":         "database",
+		"jdbc_postgresql":    "database",
+		"jdbc_oracle":        "database",
+		"mongodb_connection": "database",
+		"redis_connection":   "database",
+		"db_username":        "database",
+		"db_password":        "database",
+		"db_host":            "database",
+
 		// 联系信息
-		"phone_cn":            "contact",
-		"email":               "contact",
-		"id_card_cn":          "contact",
-		
+		"phone_cn":   "contact",
+		"email":      "contact",
+		"id_card_cn": "contact",
+
 		// 其他
-		"ipv4":                "network",
-		"internal_ip":         "network",
-		"uuid":                "other",
-		"wechat_appid":        "wechat",
-		"wechat_corpid":       "wechat",
+		"ipv4":          "network",
+		"internal_ip":   "network",
+		"uuid":          "other",
+		"wechat_appid":  "wechat",
+		"wechat_corpid": "wechat",
 	}
 
 	if cat, ok := categoryMap[ruleID]; ok {

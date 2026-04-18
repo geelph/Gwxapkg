@@ -18,23 +18,18 @@ type Rules struct {
 	Rules []Rule `yaml:"rules"`
 }
 
-func init() {
-	configDir := "config"
-	configFile := filepath.Join(configDir, "rule.yaml")
-
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		if err := os.MkdirAll(configDir, 0755); err != nil {
-			fmt.Printf("Error creating config directory: %v\n", err)
-			return
-		}
-		CreateConfigFile()
-	}
+func resolveRuleFilePath() string {
+	return filepath.Join("config", "rule.yaml")
 }
 
 func ReadRuleFile() (*Rules, error) {
-	configFile := filepath.Join("config", "rule.yaml")
+	configFile := resolveRuleFilePath()
 	file, err := os.ReadFile(configFile)
 	if err != nil {
+		if os.IsNotExist(err) {
+			rules := defaultRules()
+			return &rules, nil
+		}
 		return nil, fmt.Errorf("error reading rule file: %v", err)
 	}
 
@@ -46,9 +41,8 @@ func ReadRuleFile() (*Rules, error) {
 	return &rules, nil
 }
 
-func CreateConfigFile() {
-	configFile := filepath.Join("config", "rule.yaml")
-	defaultRules := Rules{
+func defaultRules() Rules {
+	return Rules{
 		Rules: []Rule{
 			// ============ 基础信息类 (20条) ============
 			{Id: "email", Enabled: true, Pattern: `\b[A-Za-z0-9._\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,61}\b`},
@@ -263,14 +257,23 @@ func CreateConfigFile() {
 			{Id: "notion_token", Enabled: true, Pattern: `\bsecret_[A-Za-z0-9]{43}\b`},
 		},
 	}
+}
 
-	data, err := yaml.Marshal(&defaultRules)
+func CreateConfigFile() error {
+	configFile := resolveRuleFilePath()
+	if err := os.MkdirAll(filepath.Dir(configFile), 0755); err != nil {
+		return fmt.Errorf("error creating config directory: %v", err)
+	}
+
+	rules := defaultRules()
+	data, err := yaml.Marshal(&rules)
 	if err != nil {
-		fmt.Printf("Error marshalling default rules: %v\n", err)
-		return
+		return fmt.Errorf("error marshalling default rules: %v", err)
 	}
 
 	if err := os.WriteFile(configFile, data, 0755); err != nil {
-		fmt.Printf("Error writing default rule file: %v\n", err)
+		return fmt.Errorf("error writing default rule file: %v", err)
 	}
+
+	return nil
 }

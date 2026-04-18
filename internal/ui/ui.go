@@ -1,8 +1,11 @@
 package ui
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -29,7 +32,7 @@ func Banner() {
  ██║   ██║██║███╗██║ ██╔██╗ ██╔══██║██╔═══╝ ██╔═██╗ ██║   ██║
  ╚██████╔╝╚███╔███╔╝██╔╝ ██╗██║  ██║██║     ██║  ██╗╚██████╔╝
   ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝ ╚═════╝`)
-	dim.Println("              Wxapkg Decompiler Tool v2.6.0")
+	dim.Println("              Wxapkg Decompiler Tool v2.7.0")
 	fmt.Println()
 }
 
@@ -99,9 +102,38 @@ func NewSpinner(description string) *progressbar.ProgressBar {
 
 // PrintMiniProgram 美化打印小程序信息
 func PrintMiniProgram(index int, appID, version string, updateTime time.Time, fileCount int, path string) {
-	fmt.Printf("  %s %s\n", cyan.Sprintf("%2d.", index), green.Sprint(appID))
+	PrintMiniProgramWithName(index, appID, "", version, updateTime, fileCount, path)
+}
+
+// PrintMiniProgramWithName 美化打印小程序信息（含应用名）
+func PrintMiniProgramWithName(index int, appID, appName, version string, updateTime time.Time, fileCount int, path string) {
+	nameStr := ""
+	if appName != "" {
+		nameStr = "  " + magenta.Sprint(appName)
+	}
+	fmt.Printf("  %s %s%s\n", cyan.Sprintf("%2d.", index), green.Sprint(appID), nameStr)
 	dim.Printf("     版本: %s │ 文件: %d │ 更新: %s\n", version, fileCount, updateTime.Format("2006-01-02 15:04"))
 	dim.Printf("     路径: %s\n\n", path)
+}
+
+// Prompt 显示提示并读取用户输入的编号，返回选择的索引 (1-based)。
+// 输入 q 返回 -1，输入无效时重新提示。
+func Prompt(maxIndex int) int {
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		yellow.Print("\n请选择要处理的小程序编号（输入 q 退出）: ")
+		line, _ := reader.ReadString('\n')
+		line = strings.TrimSpace(line)
+		if line == "q" || line == "Q" {
+			return -1
+		}
+		n, err := strconv.Atoi(line)
+		if err != nil || n < 1 || n > maxIndex {
+			red.Printf("无效输入，请输入 1-%d 之间的数字或 q 退出\n", maxIndex)
+			continue
+		}
+		return n
+	}
 }
 
 // PrintDivider 打印分隔线
@@ -113,8 +145,14 @@ func PrintDivider() {
 func PrintUsage() {
 	cyan.Println("命令:")
 	fmt.Println()
-	white.Println("  scan                     扫描本地小程序")
-	white.Println("  all -id=<AppID>          自动查找并处理指定小程序")
+	white.Println("  scan                          扫描本地小程序（交互式选择解包）")
+	white.Println("  scan --verbose                扫描并输出候选路径诊断")
+	white.Println("  all -id=<AppID>               自动查找并处理指定小程序")
+	white.Println("  all -id=wx1,wx2,wx3           批量处理（逗号分隔）")
+	white.Println("  all -id-file=ids.txt          批量处理（文件，每行一个 AppID）")
+	white.Println("  all --all                     处理所有已缓存的小程序")
+	white.Println("  all --all --verbose           扫描全部缓存并输出候选路径诊断")
+	white.Println("  scan-only -dir=<目录>          对已解包目录独立扫描并生成报告")
 	white.Println("  repack -in=<目录> -id=<AppID>  重新打包为客户端可用 wxapkg")
 	fmt.Println()
 	cyan.Println("直接使用:")
@@ -130,5 +168,6 @@ func PrintUsage() {
 	dim.Println("  -workspace   保留可精确回包的隐藏工作区 (默认: false)")
 	dim.Println("  repack -id   生成加密包，适用于回写微信客户端")
 	dim.Println("  repack -raw  生成未加密包，仅供测试")
+	dim.Println("  scan-only -format  报告格式: excel / html / both (默认: both)")
 	fmt.Println()
 }

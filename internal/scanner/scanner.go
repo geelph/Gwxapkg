@@ -23,6 +23,12 @@ func ScanFile(filePath string, content []byte, collector *DataCollector) error {
 	// 转换为字符串
 	text := string(content)
 
+	if collector != nil {
+		for _, endpoint := range ExtractAPIEndpoints(filePath, content) {
+			collector.AddAPIEndpoint(endpoint)
+		}
+	}
+
 	// 按行扫描以获取行号
 	scanner := bufio.NewScanner(strings.NewReader(text))
 	// 设置更大的缓冲区以支持压缩后的超长行（默认 64KB，这里设置为 10MB）
